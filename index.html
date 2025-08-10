@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Visor 3D de Instrumentos Musicales</title>
+
+    <link rel="stylesheet" href="72.css" />
+
+    <!-- AR.js WebXR con detección de planos -->
+    <script src="https://cdn.jsdelivr.net/npm/aframe-ar@1.1.0/dist/aframe-ar.min.js"></script>
+     <!-- A-Frame y environment component -->
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/aframe-environment-component@1.3.1/dist/aframe-environment-component.min.js"></script>
+
+
+    <!-- GA4 -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-9E9W4SD7VX"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-9E9W4SD7VX');
+    </script>
+</head>
+
+<body>
+
+<a-scene embedded vr-mode-ui="enabled: false" renderer="colorManagement: true; physicallyCorrectLights: true" arjs="sourceType: webcam; debugUIEnabled: false; trackingMethod: best;" id="scene">
+
+  <!-- Cámara fija -->
+  <a-entity id="camera" camera position="0 1.6 3"></a-entity>
+
+  <!-- Luz ambiental suave -->
+  <a-light type="ambient" color="#bbbbbb" intensity="0.6"></a-light>
+
+  <!-- Luz direccional cálida -->
+  <a-light type="directional" color="#fff8e7" intensity="1.0" position="2 4 3" cast-shadow="true"></a-light>
+
+  <!-- Luz hemisférica para luz de cielo -->
+  <a-light type="hemisphere" sky-color="#a0c4ff" ground-color="#774936" intensity="0.3"></a-light>
+
+  <!-- Plano para sombra -->
+  <a-plane rotation="-90 0 0" width="10" height="10" visible="false" shadow="receive: true"></a-plane>
+
+  <!-- Modelo 3D -->
+  <!-- <a-entity id="model" position="0 0 0" rotation="0 180 0" scale="1 1 1" visible="true" shadow="cast: true; receive: false" class="clickable"></a-entity> -->
+  <a-entity id="model" position="0 0 0" rotation="0 180 0" scale="1 1 1" visible="true" shadow="cast: true; receive: false" class="clickable" gesture-handler></a-entity>
+
+
+</a-scene>
+
+
+
+
+    <!-- Botón para activar AR -->
+    <button id="ar-button" class="ar-button">Ver en AR</button>
+    <div class="loading" id="loading">Cargando modelo 3D...</div>
+
+    <!-- Info icon y tooltip -->
+    <span class="info-icon">
+        <img src="img/icon.svg" alt="Información" class="info-icon-img" />
+        <span class="tooltip-text" id="model-tooltip">Diafragma Beyma R-12KX</span>
+    </span>
+
+    <!-- Slider para cambio de modelos -->
+    <div class="slider">
+        <div class="slides">
+            <button class="slide selected" onclick="switchSrc(this, 'DIAFRAGMABEYMA')"
+                style="background-image: url('img/diafragma.png');" title="Diafragma Beyma"></button>
+            <button class="slide" onclick="switchSrc(this, 'FLAUTA4_opt')"
+                style="background-image: url('img/FLAUTA.png');" title="Flauta"></button>
+            <button class="slide" onclick="switchSrc(this, 'GUIRO3_opt')"
+                style="background-image: url('img/GUIRO.png');" title="Güiro"></button>
+            <button class="slide" onclick="switchSrc(this, 'pandero')" style="background-image: url('img/PANDERO.png');"
+                title="Pandero"></button>
+        </div>
+    </div>
+
+    <button id="backButton" style="display:none;">← Volver al sitio</button>
+    <button id="goButton" style="display:none;">Ir al sitio</button>
+
+    <!-- Modales igual que antes -->
+    <div id="customRatingModal" class="custom-modal" role="dialog" aria-modal="true" aria-labelledby="customRatingTitle"
+        tabindex="-1" hidden>
+        <div class="custom-modal-content">
+            <h2 id="customRatingTitle">¡Gracias por usar nuestra experiencia AR!</h2>
+            <button id="closeCustomModal" class="close-btn" aria-label="Cerrar modal">×</button>
+            <p>Por favor califica tu experiencia:</p>
+            <div class="rating-buttons" role="group" aria-label="Calificación de estrellas">
+                <button type="button" data-rating="1">★ (1 estrella)</button>
+                <button type="button" data-rating="2">★★ (2 estrellas)</button>
+                <button type="button" data-rating="3">★★★ (3 estrellas)</button>
+                <button type="button" data-rating="4">★★★★ (4 estrellas)</button>
+                <button type="button" data-rating="5">★★★★★ (5 estrellas)</button>
+            </div>
+            <div class="modal-footer" style="margin-top: 15px; text-align: right;">
+                <button id="cancelCustomBtn" type="button">Cancelar</button>
+                <button id="submitCustomBtn" type="button">Enviar Calificación</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="compatibilityModal" class="custom-modal compatibility-modal">
+        <div class="custom-modal-content compatibility-modal-content">
+            <h2 id="compatibilityTitle">Compatibilidad con AR</h2>
+            <ul style="margin-top: 10px; padding-left: 20px;">
+                <li>En algunos dispositivos Android, es posible que necesites instalar una app externa para acceder a la
+                    experiencia AR.</li>
+                <li>La experiencia de Realidad Aumentada no está disponible en dispositivos iOS.</li>
+            </ul>
+            <button id="acceptCompatibilityBtn" type="button">Aceptar</button>
+        </div>
+    </div>
+
+    <script src="prueba31.js"></script>
+    <script>
+AFRAME.registerComponent('gesture-handler', {
+  init: function () {
+    this.isDragging = false;
+    this.previousTouches = [];
+    this.previousRotation = 0;
+    this.previousDistance = 0;
+
+    const canvas = this.el.sceneEl.canvas;
+    canvas.addEventListener('touchstart', this.onTouchStart.bind(this), { passive: false });
+    canvas.addEventListener('touchmove', this.onTouchMove.bind(this), { passive: false });
+    canvas.addEventListener('touchend', this.onTouchEnd.bind(this));
+    canvas.addEventListener('mousedown', this.onMouseDown.bind(this));
+    window.addEventListener('mousemove', this.onMouseMove.bind(this));
+    window.addEventListener('mouseup', this.onMouseUp.bind(this));
+  },
+
+  onTouchStart: function (event) {
+    if (event.touches.length === 1) {
+      this.isDragging = true;
+      this.startTouch = { x: event.touches[0].clientX, y: event.touches[0].clientY };
+      this.startPosition = this.el.object3D.position.clone();
+    } else if (event.touches.length === 2) {
+      this.isDragging = false;
+      this.previousTouches = [event.touches[0], event.touches[1]];
+      this.previousRotation = this.getRotation(event.touches);
+      this.previousDistance = this.getDistance(event.touches);
+      this.startScale = this.el.object3D.scale.clone();
+      this.startRotationY = this.el.object3D.rotation.y;
+    }
+  },
+
+  onTouchMove: function (event) {
+    event.preventDefault();
+    if (event.touches.length === 1 && this.isDragging) {
+      const dx = (event.touches[0].clientX - this.startTouch.x) / 100;
+      const dy = (event.touches[0].clientY - this.startTouch.y) / 100;
+      this.el.object3D.position.x = this.startPosition.x + dx;
+      this.el.object3D.position.y = this.startPosition.y - dy;
+    } else if (event.touches.length === 2) {
+      const currentDistance = this.getDistance(event.touches);
+      const scaleFactor = currentDistance / this.previousDistance;
+      this.el.object3D.scale.set(
+        this.startScale.x * scaleFactor,
+        this.startScale.y * scaleFactor,
+        this.startScale.z * scaleFactor
+      );
+
+      const currentRotation = this.getRotation(event.touches);
+      const rotationDelta = currentRotation - this.previousRotation;
+      this.el.object3D.rotation.y = this.startRotationY - THREE.Math.degToRad(rotationDelta);
+    }
+  },
+
+  onTouchEnd: function (event) {
+    if (event.touches.length === 0) {
+      this.isDragging = false;
+    }
+  },
+
+  onMouseDown: function (event) {
+    this.isDragging = true;
+    this.startMouse = { x: event.clientX, y: event.clientY };
+    this.startPosition = this.el.object3D.position.clone();
+    this.startRotationY = this.el.object3D.rotation.y;
+  },
+
+  onMouseMove: function (event) {
+    if (!this.isDragging) return;
+    const dx = (event.clientX - this.startMouse.x) / 100;
+    const dy = (event.clientY - this.startMouse.y);
+    this.el.object3D.position.x = this.startPosition.x + dx;
+    this.el.object3D.rotation.y = this.startRotationY - dy * 0.01;
+  },
+
+  onMouseUp: function () {
+    this.isDragging = false;
+  },
+
+  getDistance: function (touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  },
+
+  getRotation: function (touches) {
+    const dx = touches[1].clientX - touches[0].clientX;
+    const dy = touches[1].clientY - touches[0].clientY;
+    return Math.atan2(dy, dx) * 180 / Math.PI;
+  }
+});
+</script>
+
+
+</body>
+</html>
